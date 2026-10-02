@@ -194,6 +194,7 @@ button.confirming:hover { background: color-mix(in srgb, var(--rust) 85%, transp
   background: var(--cream-surface);
   border: 1px solid var(--cream-warm);
   border-radius: 10px;
+  padding: 0.25rem;
   overflow: hidden;
 }
 table { width: 100%; border-collapse: collapse; }
