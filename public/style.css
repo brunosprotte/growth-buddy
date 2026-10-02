@@ -135,6 +135,7 @@ nav a.active { background: var(--on-accent); color: var(--bordo-deep); }
   color: var(--ink-soft);
   max-width: 56ch;
 }
+.view-header h2:focus { outline: none; }
 
 /* ===== Stats ===== */
 .stats {

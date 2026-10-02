@@ -31,6 +31,85 @@ const formatDate = (iso) => {
 
 const reguaAtiva = () => reguas.find(r => r.id === activeReguaId) || reguas[0];
 
+// --- Starfish: score por assunto + render SVG ---
+const calcularScorePorAssunto = (mentorado, regua) => {
+  if (!regua || !regua.assuntosMacro.length) return [];
+  const maxPeso = Math.max(1, ...regua.proficiencias.map(p => p.peso || 0));
+  return regua.assuntosMacro.map(macro => {
+    const total = macro.itens.length;
+    if (!total) return { id: macro.id, nome: macro.nome, score: 0, total, marcados: 0 };
+    const marcados = macro.itens.filter(i => mentorado.proficiencias?.[i.id]);
+    const soma = macro.itens.reduce((acc, item) => {
+      const profId = mentorado.proficiencias?.[item.id];
+      if (!profId) return acc;
+      const prof = regua.proficiencias.find(p => p.id === profId);
+      return acc + (prof?.peso || 0);
+    }, 0);
+    const score = soma / (total * maxPeso);
+    return { id: macro.id, nome: macro.nome, score, total, marcados: marcados.length };
+  });
+};
+
+const renderStarfish = (scores, size = 100) => {
+  const n = scores.length;
+  if (!n) return '<div class="starfish-empty">Sem assuntos</div>';
+  if (n === 1) return `<div class="starfish-single">Único assunto: ${escape(scores[0].nome)} — ${(scores[0].score * 100).toFixed(0)}%</div>`;
+
+  const labelFontPx = size >= 120 ? 11 : 0;
+  const longest = Math.max(...scores.map(s => (s.nome || '').length));
+  const padSide = labelFontPx ? Math.max(18, (longest * labelFontPx * 0.55) + 10) : 0;
+  const w = size + padSide * 2;
+  const h = size + padSide * 2;
+  const cx = w / 2;
+  const cy = h / 2;
+  const radius = (size / 2) - 6;
+  const angleFor = (i) => -Math.PI / 2 + (2 * Math.PI * i) / n;
+  const pointFor = (i, r) => {
+    const a = angleFor(i);
+    return { x: cx + r * Math.cos(a), y: cy + r * Math.sin(a) };
+  };
+
+  const rings = [0.33, 0.67, 1.0];
+  const grid = rings.map(ring => {
+    const pts = scores.map((_, i) => {
+      const p = pointFor(i, radius * ring);
+      return `${p.x.toFixed(1)},${p.y.toFixed(1)}`;
+    }).join(' ');
+    return `<polygon points="${pts}" class="sf-grid"/>`;
+  }).join('');
+
+  const axes = scores.map((_, i) => {
+    const p = pointFor(i, radius);
+    return `<line x1="${cx}" y1="${cy}" x2="${p.x.toFixed(1)}" y2="${p.y.toFixed(1)}" class="sf-axis"/>`;
+  }).join('');
+
+  const dataPts = scores.map((s, i) => {
+    const p = pointFor(i, radius * s.score);
+    return `${p.x.toFixed(1)},${p.y.toFixed(1)}`;
+  }).join(' ');
+
+  const dotR = size >= 120 ? 2.6 : 1.8;
+  const dots = scores.map((s, i) => {
+    const p = pointFor(i, radius * s.score);
+    return `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${dotR}" class="sf-dot"/>`;
+  }).join('');
+
+  const labels = labelFontPx ? scores.map((s, i) => {
+    const p = pointFor(i, radius + 12);
+    return `<text x="${p.x.toFixed(1)}" y="${p.y.toFixed(1)}" text-anchor="middle" dominant-baseline="middle" class="sf-label">${escape(s.nome)}</text>`;
+  }).join('') : '';
+
+  return `
+    <svg viewBox="0 0 ${w} ${h}" width="${size}" height="${size}" class="starfish" role="img" aria-label="Distribuição de proficiência por assunto macro">
+      ${grid}
+      ${axes}
+      <polygon points="${dataPts}" class="sf-data"/>
+      ${dots}
+      ${labels}
+    </svg>
+  `;
+};
+
 // View switching
 $$('nav a').forEach(a => {
   a.onclick = (e) => {
@@ -41,6 +120,11 @@ $$('nav a').forEach(a => {
     const view = a.dataset.view;
     $$('.view').forEach(v => v.hidden = v.id !== `view-${view}`);
     window.scrollTo(0, 0);
+    const heading = $(`#view-${view} .view-header h2`);
+    if (heading) {
+      heading.setAttribute('tabindex', '-1');
+      heading.focus({ preventScroll: true });
+    }
   };
 });
 // Default-current on first nav link
@@ -88,10 +172,12 @@ const recarregarReguas = async () => {
 const renderDashboard = () => {
   const total = mentorados.length;
   const ativos = mentorados.filter(m => m.status === 'ativo').length;
+  const totalItens = reguas.reduce((s, r) => s + r.assuntosMacro.reduce((a, m) => a + m.itens.length, 0), 0);
   const marcados = mentorados.reduce((s, m) => {
     const regua = reguas.find(r => r.id === m.reguaId);
-    const nivel = regua?.niveis.find(n => n.id === m.nivelId);
-    return s + (nivel ? nivel.itens.filter(i => m.proficiencias?.[i.id]).length : 0);
+    if (!regua) return s;
+    return s + regua.assuntosMacro.reduce((acc, macro) =>
+      acc + macro.itens.filter(i => m.proficiencias?.[i.id]).length, 0);
   }, 0);
 
   $('#stats').innerHTML = `
@@ -101,14 +187,14 @@ const renderDashboard = () => {
       <div class="hint">${ativos} ativos</div>
     </div>
     <div class="stat">
-      <div class="label">Marcos no nível</div>
+      <div class="label">Marcos marcados</div>
       <div class="value">${marcados}</div>
-      <div class="hint">concluídos no nível atual de cada mentorado</div>
+      <div class="hint">marcações de proficiência feitas</div>
     </div>
     <div class="stat">
       <div class="label">Réguas ativas</div>
       <div class="value">${reguas.length}</div>
-      <div class="hint">${reguas.reduce((s, r) => s + r.niveis.reduce((a, n) => a + n.itens.length, 0), 0)} marcos no total</div>
+      <div class="hint">${totalItens} marcos no total</div>
     </div>
   `;
 
@@ -124,12 +210,12 @@ const renderDashboard = () => {
 
   tbody.innerHTML = mentorados.map(m => {
     const regua = reguas.find(r => r.id === m.reguaId);
-    const nivel = regua?.niveis.find(n => n.id === m.nivelId);
-    const totalItens = nivel?.itens.length ?? 0;
-    const marcadosNoNivel = nivel
-      ? nivel.itens.filter(i => m.proficiencias?.[i.id]).length
+    const scores = regua ? calcularScorePorAssunto(m, regua) : [];
+    const totalItensM = regua ? regua.assuntosMacro.reduce((a, ma) => a + ma.itens.length, 0) : 0;
+    const marcadosM = regua
+      ? regua.assuntosMacro.reduce((acc, macro) =>
+          acc + macro.itens.filter(i => m.proficiencias?.[i.id]).length, 0)
       : 0;
-    const pct = totalItens ? Math.round((marcadosNoNivel / totalItens) * 100) : 0;
 
     return `
       <tr>
@@ -140,13 +226,10 @@ const renderDashboard = () => {
         </td>
         <td>
           ${regua ? `<span class="regua-tag">${escape(regua.nome)}</span>` : ''}
-          ${nivel ? `<span class="nivel-badge ${nivel.id}">${escape(nivel.nome)}</span>` : ''}
         </td>
-        <td>
-          <div class="progress-cell">
-            <div class="progress-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}" aria-label="Progresso de ${escape(m.nome)} no nível ${escape(nivel?.nome || '')}"><div class="progress-fill" style="--pct:${pct / 100}"></div></div>
-            <div class="progress-text">${marcadosNoNivel} de ${totalItens} marcos no nível</div>
-          </div>
+        <td class="starfish-cell">
+          ${scores.length ? renderStarfish(scores, 110) : '<span class="vazio-mini">Sem assuntos</span>'}
+          <div class="starfish-caption">${marcadosM} de ${totalItensM} marcos · ${scores.length} assuntos</div>
         </td>
         <td><span class="status-tag ${m.status}">${m.status}</span></td>
       </tr>
@@ -159,18 +242,7 @@ const popularSelectRegua = () => {
   const sel = $('#select-regua-form');
   if (!sel) return;
   sel.innerHTML = reguas.map(r => `<option value="${r.id}">${escape(r.nome)}</option>`).join('');
-  popularSelectNivel();
 };
-
-const popularSelectNivel = () => {
-  const sel = $('#select-nivel-form');
-  if (!sel) return;
-  const reguaId = $('#select-regua-form')?.value;
-  const r = reguas.find(x => x.id === reguaId) || reguas[0];
-  sel.innerHTML = (r?.niveis ?? []).map(n => `<option value="${n.id}">${escape(n.nome)}</option>`).join('');
-};
-
-$('#select-regua-form')?.addEventListener('change', popularSelectNivel);
 
 const renderMentorados = () => {
   const lista = $('#lista-mentorados');
@@ -182,41 +254,60 @@ const renderMentorados = () => {
   lista.innerHTML = mentorados.map(m => {
     const regua = reguas.find(r => r.id === m.reguaId);
     if (!regua) return '';
-    const niveisHtml = regua.niveis.map(n => {
-      const itensHtml = (n.itens.length ? n.itens : []).map(item => {
+
+    const macrosHtml = regua.assuntosMacro.length ? regua.assuntosMacro.map(macro => {
+      const profsSorted = regua.proficiencias.slice().sort((a, b) => (a.peso || 0) - (b.peso || 0));
+      const itensHtml = macro.itens.length ? macro.itens.map(item => {
         const profId = m.proficiencias?.[item.id] || '';
-        const profNome = item.descricao ? `<span class="item-desc">${escape(item.descricao)}</span>` : '';
         const optsHtml = [`<option value="">— sem marcação —</option>`]
-          .concat(regua.proficiencias.map(p =>
-            `<option value="${p.id}" ${profId === p.id ? 'selected' : ''}>${escape(p.nome)}</option>`
+          .concat(profsSorted.map(p =>
+            `<option value="${p.id}" ${profId === p.id ? 'selected' : ''}>${p.peso || 0} — ${escape(p.nome)}</option>`
           ))
           .join('');
         return `
-          <div class="item-row">
-            <div class="item-info">
+          <div class="macro-item-row">
+            <div class="macro-item-info">
               <span class="item-nome">${escape(item.nome)}</span>
-              ${profNome}
+              ${item.descricao ? `<span class="item-desc">${escape(item.descricao)}</span>` : ''}
             </div>
             <select class="prof-select" data-prof="${m.id}|${item.id}" aria-label="Proficiência de ${escape(item.nome)} para ${escape(m.nome)}">
               ${optsHtml}
             </select>
           </div>
         `;
-      }).join('');
+      }).join('') : '<p class="vazio-item-mini">Sem marcos neste assunto.</p>';
+
       return `
-        <div class="nivel-section">
-          <div class="nivel-titulo">
-            <span class="nivel-badge ${n.id}">${escape(n.nome)}</span>
-            <span style="font-weight:400;color:var(--ink-mute);font-size:0.78rem">${n.itens.length} marcos</span>
+        <div class="assunto-section">
+          <div class="assunto-titulo">
+            <strong>${escape(macro.nome)}</strong>
+            ${macro.descricao ? `<span class="item-desc">${escape(macro.descricao)}</span>` : ''}
+            <span class="contador-mini">${macro.itens.length} ${macro.itens.length === 1 ? 'marco' : 'marcos'}</span>
           </div>
-          ${itensHtml || '<p class="vazio" style="padding:0.5rem">Sem marcos neste nível.</p>'}
+          ${itensHtml}
         </div>
       `;
-    }).join('');
+    }).join('') : '<p class="vazio" style="padding:0.5rem">Esta régua ainda não tem assuntos macro.</p>';
+
+    const scores = calcularScorePorAssunto(m, regua);
+    const starfishBlock = scores.length ? `
+      <div class="starfish-card">
+        <div class="starfish-title">Distribuição por pilar</div>
+        ${renderStarfish(scores, 220)}
+        <ul class="starfish-legend">
+          ${scores.map(s => `
+            <span class="leg-item">
+              <span class="leg-name">${escape(s.nome)}</span>
+              <span class="leg-pct">${Math.round(s.score * 100)}%</span>
+            </span>
+          `).join('')}
+        </ul>
+      </div>
+    ` : '';
 
     return `
       <div class="card-row">
-        <div>
+        <div class="card-main">
           <h4>${escape(m.nome)}</h4>
           <div class="meta">
             <span class="regua-tag">${escape(regua.nome)}</span>
@@ -224,7 +315,7 @@ const renderMentorados = () => {
             ${m.objetivo ? ` · ${escape(m.objetivo)}` : ''}
             ${m.criadoEm ? ` · desde ${formatDate(m.criadoEm)}` : ''}
           </div>
-          ${niveisHtml}
+          ${macrosHtml}
           ${m.notas ? `<div class="notas">${escape(m.notas)}</div>` : ''}
           <form class="edit-form" data-edit-form="${m.id}" hidden>
             <div class="form-grid">
@@ -235,13 +326,8 @@ const renderMentorados = () => {
                 <input name="objetivo" value="${escape(m.objetivo || '')}" maxlength="200" placeholder="ex: virar pleno backend">
               </label>
               <label>Régua
-                <select name="reguaId" data-edit-regua="${escape(m.id)}">
+                <select name="reguaId">
                   ${reguas.map(r => `<option value="${r.id}" ${r.id === m.reguaId ? 'selected' : ''}>${escape(r.nome)}</option>`).join('')}
-                </select>
-              </label>
-              <label>Nível
-                <select name="nivelId" data-edit-nivel="${escape(m.id)}">
-                  ${regua.niveis.map(n => `<option value="${n.id}" ${n.id === m.nivelId ? 'selected' : ''}>${escape(n.nome)}</option>`).join('')}
                 </select>
               </label>
             </div>
@@ -254,29 +340,21 @@ const renderMentorados = () => {
             </div>
           </form>
         </div>
-        <div class="acoes">
-          <select data-status="${m.id}" aria-label="Status de ${escape(m.nome)}">
-            <option value="ativo" ${m.status === 'ativo' ? 'selected' : ''}>ativo</option>
-            <option value="pausado" ${m.status === 'pausado' ? 'selected' : ''}>pausado</option>
-            <option value="concluido" ${m.status === 'concluido' ? 'selected' : ''}>concluído</option>
-          </select>
-          <button class="ghost small" data-editar="${m.id}">editar</button>
-          <button class="danger small" data-remover="${m.id}">remover</button>
-        </div>
+        <aside class="card-side">
+          ${starfishBlock || '<div class="starfish-empty">Sem assuntos macro nesta régua.</div>'}
+          <div class="acoes">
+            <select data-status="${m.id}" aria-label="Status de ${escape(m.nome)}">
+              <option value="ativo" ${m.status === 'ativo' ? 'selected' : ''}>ativo</option>
+              <option value="pausado" ${m.status === 'pausado' ? 'selected' : ''}>pausado</option>
+              <option value="concluido" ${m.status === 'concluido' ? 'selected' : ''}>concluído</option>
+            </select>
+            <button class="ghost small" data-editar="${m.id}">editar</button>
+            <button class="danger small" data-remover="${m.id}">remover</button>
+          </div>
+        </aside>
       </div>
     `;
   }).join('');
-
-  // Cascade: editing regua updates its nivel options
-  $$('[data-edit-regua]').forEach(sel => {
-    sel.onchange = () => {
-      const id = sel.dataset.editRegua;
-      const r = reguas.find(x => x.id === sel.value);
-      const nivelSel = document.querySelector(`[data-edit-nivel="${id}"]`);
-      if (!r || !nivelSel) return;
-      nivelSel.innerHTML = r.niveis.map(n => `<option value="${n.id}">${escape(n.nome)}</option>`).join('');
-    };
-  });
 
   $$('[data-edit-form]').forEach(form => {
     form.onsubmit = async (e) => {
@@ -359,6 +437,7 @@ const removerMentorado = async (id) => {
 // --- Réguas ---
 const renderRegua = () => {
   const tabs = $('#regua-tabs');
+  if (!tabs) return;
   tabs.innerHTML = reguas.map(r => `
     <button class="regua-tab ${r.id === activeReguaId ? 'active' : ''}" data-tab="${r.id}">${escape(r.nome)}</button>
   `).join('') + `<button class="regua-tab add" data-add-regua>+ Nova régua</button>`;
@@ -381,12 +460,13 @@ const renderRegua = () => {
     return;
   }
 
-  $('#regua-detail').innerHTML = `
+  const detail = $('#regua-detail');
+  detail.innerHTML = `
     <form class="panel new-regua-form" data-new-regua-form ${newReguaFormOpen ? '' : 'hidden'}>
       <h3>Nova régua</h3>
       <div class="form-grid">
         <label>Nome
-          <input name="nome" required maxlength="80" placeholder="ex: Backend, Frontend, QA">
+          <input name="nome" required maxlength="80" placeholder="ex: Developer Backend">
         </label>
         <label>Descrição (opcional)
           <input name="descricao" maxlength="300" placeholder="Desenvolvedor backend Node + Postgres">
@@ -412,9 +492,9 @@ const renderRegua = () => {
     <div class="profs-section">
       <h4>Níveis de proficiência</h4>
       <div class="profs-list">
-        ${r.proficiencias.map(p => `
+        ${r.proficiencias.slice().sort((a, b) => (a.peso || 0) - (b.peso || 0)).map(p => `
           <span class="prof-pill">
-            <span class="prof-ordem">${p.ordem}</span>
+            <span class="prof-ordem">${p.peso}</span>
             ${escape(p.nome)}
             <button class="ghost mini" data-edit-prof="${p.id}">editar</button>
             <button class="danger mini" data-del-prof="${p.id}">×</button>
@@ -422,59 +502,76 @@ const renderRegua = () => {
         `).join('') || '<span style="color:var(--ink-mute);font-size:0.85rem">Nenhum nível definido.</span>'}
       </div>
       <div class="add-prof">
-        <input placeholder="Novo nível (ex: Conhecimento sólido)" data-add-prof maxlength="120">
+        <input placeholder="Nome do nível (ex: Conhecimento sólido)" data-add-prof maxlength="120">
+        <input type="number" placeholder="Peso" data-add-prof-peso min="0" max="100" step="1" aria-label="Peso do nível">
         <button data-add-prof-btn>Adicionar</button>
       </div>
     </div>
 
-    <div class="niveis-grid">
-      ${r.niveis.map(n => `
-        <div class="nivel-panel ${n.id}">
+    <div class="macros-list">
+      <h4>Assuntos macro</h4>
+      ${r.assuntosMacro.length ? r.assuntosMacro.map(macro => `
+        <article class="macro-card">
           <header>
-            <h3>
-              ${escape(n.nome)}
-              <span class="acoes">
-                <button class="ghost mini" data-edit-nivel="${n.id}" data-nome-nivel="${escape(n.nome)}">editar</button>
-                <button class="danger mini" data-del-nivel="${n.id}">×</button>
-              </span>
-            </h3>
-            <p>${n.itens.length} marcos</p>
+            <div class="texto">
+              <h5>${escape(macro.nome)}</h5>
+              ${macro.descricao ? `<p>${escape(macro.descricao)}</p>` : ''}
+              <p class="contador">${macro.itens.length} ${macro.itens.length === 1 ? 'marco' : 'marcos'}</p>
+            </div>
+            <div class="acoes">
+              <button class="ghost mini" data-edit-macro="${macro.id}" data-macro-nome="${escape(macro.nome)}" data-macro-desc="${escape(macro.descricao || '')}">editar</button>
+              <button class="danger mini" data-del-macro="${macro.id}">remover</button>
+            </div>
           </header>
-          <ul>
-            ${(n.itens.length ? n.itens.map(i => `
+          <ul class="macro-itens">
+            ${macro.itens.length ? macro.itens.map(item => `
               <li>
                 <div class="linha-topo">
-                  <span>${escape(i.nome)}</span>
-                  <span class="acoes">
-                    <button class="ghost small" data-edit-item="${n.id}|${i.id}" data-nome="${escape(i.nome)}" data-desc="${escape(i.descricao)}">editar</button>
-                    <button class="danger small" data-del-item="${n.id}|${i.id}">remover</button>
-                  </span>
+                  <div class="texto">
+                    <strong>${escape(item.nome)}</strong>
+                    ${item.descricao ? `<span class="item-desc">${escape(item.descricao)}</span>` : ''}
+                  </div>
+                  <div class="acoes">
+                    <button class="ghost small" data-edit-item-macro="${macro.id}|${item.id}" data-item-macro-nome="${escape(item.nome)}" data-item-macro-desc="${escape(item.descricao || '')}">editar</button>
+                    <button class="danger small" data-del-item-macro="${macro.id}|${item.id}">remover</button>
+                  </div>
                 </div>
-                ${i.descricao ? `<span class="item-desc">${escape(i.descricao)}</span>` : ''}
               </li>
-            `).join('') : '<li><span style="color:var(--ink-mute);font-style:italic">Sem marcos.</span></li>')}
+            `).join('') : '<li class="vazio-item">Sem marcos neste assunto. Adicione abaixo.</li>'}
           </ul>
-          <div class="add-item">
-            <input placeholder="Nome do marco" data-add-nome="${n.id}" maxlength="120">
-            <textarea placeholder="Descrição (opcional)" data-add-desc="${n.id}" maxlength="300"></textarea>
+          <div class="add-item-macro">
+            <input placeholder="Nome do marco (ex: Faz code review)" data-add-item-macro-nome="${macro.id}" maxlength="120">
+            <textarea placeholder="Descrição (opcional)" data-add-item-macro-desc="${macro.id}" maxlength="300"></textarea>
             <div class="linha">
-              <button data-add-item-btn="${n.id}">Adicionar marco</button>
+              <button data-add-item-macro-btn="${macro.id}">Adicionar marco</button>
             </div>
           </div>
-        </div>
-      `).join('')}
+        </article>
+      `).join('') : '<p class="vazio">Nenhum assunto macro. Adicione o primeiro abaixo.</p>'}
     </div>
 
-    <div class="add-nivel">
-      <input placeholder="Novo nível (ex: Tech Lead)" data-add-nivel maxlength="80">
-      <button data-add-nivel-btn>Adicionar nível</button>
+    <div class="add-macro">
+      <h4>Novo assunto macro</h4>
+      <div class="form-grid">
+        <label>Nome
+          <input data-add-macro-nome placeholder="ex: Codificação, Qualidade, SoftSkills" maxlength="80">
+        </label>
+        <label>Descrição (opcional)
+          <input data-add-macro-desc placeholder="Detalhe o que este assunto cobre" maxlength="300">
+        </label>
+      </div>
+      <div class="linha">
+        <button data-add-macro-btn>Adicionar assunto</button>
+      </div>
     </div>
   `;
 
-  $('#regua-detail [data-edit-regua]').onclick = () => editarRegua(r.id);
-  $('#regua-detail [data-del-regua]').onclick = () => removerRegua(r.id);
+  const detailRoot = $('#regua-detail');
 
-  const newReguaForm = $('#regua-detail [data-new-regua-form]');
+  detailRoot.querySelector('[data-edit-regua]').onclick = () => editarRegua(r.id);
+  detailRoot.querySelector('[data-del-regua]').onclick = () => removerRegua(r.id);
+
+  const newReguaForm = detailRoot.querySelector('[data-new-regua-form]');
   if (newReguaForm) {
     newReguaForm.onsubmit = async (e) => {
       e.preventDefault();
@@ -485,51 +582,52 @@ const renderRegua = () => {
       await recarregarReguas();
     };
   }
-  $('#regua-detail [data-cancel-new-regua]')?.addEventListener('click', () => {
+  detailRoot.querySelector('[data-cancel-new-regua]')?.addEventListener('click', () => {
     newReguaFormOpen = false;
     renderRegua();
   });
 
-  $$('#regua-detail [data-edit-prof]').forEach(b => {
+  // Proficiências
+  detailRoot.querySelectorAll('[data-edit-prof]').forEach(b => {
     b.onclick = () => editarProf(r.id, b.dataset.editProf);
   });
-  $$('#regua-detail [data-del-prof]').forEach(b => {
+  detailRoot.querySelectorAll('[data-del-prof]').forEach(b => {
     b.onclick = () => removerProf(r.id, b.dataset.delProf);
   });
-  $('#regua-detail [data-add-prof-btn]').onclick = () => addProf(r.id);
-  $('#regua-detail [data-add-prof]').addEventListener('keydown', e => {
+  detailRoot.querySelector('[data-add-prof-btn]').onclick = () => addProf(r.id);
+  detailRoot.querySelector('[data-add-prof]').addEventListener('keydown', e => {
     if (e.key === 'Enter') addProf(r.id);
   });
 
-  $$('#regua-detail [data-edit-nivel]').forEach(b => {
-    b.onclick = () => editarNivel(r.id, b.dataset.editNivel, b.dataset.nomeNivel);
+  // Assuntos macro
+  detailRoot.querySelectorAll('[data-edit-macro]').forEach(b => {
+    b.onclick = () => editarMacro(r.id, b.dataset.editMacro, b.dataset.macroNome, b.dataset.macroDesc);
   });
-  $$('#regua-detail [data-del-nivel]').forEach(b => {
-    b.onclick = () => removerNivel(r.id, b.dataset.delNivel);
+  detailRoot.querySelectorAll('[data-del-macro]').forEach(b => {
+    b.onclick = () => removerMacro(r.id, b.dataset.delMacro);
   });
 
-  $$('#regua-detail [data-edit-item]').forEach(b => {
-    b.onclick = () => editarItem(r.id, b.dataset.editItem, b.dataset.nome, b.dataset.desc);
+  // Itens dentro de assunto macro
+  detailRoot.querySelectorAll('[data-edit-item-macro]').forEach(b => {
+    b.onclick = () => editarItemMacro(r.id, b.dataset.editItemMacro, b.dataset.itemMacroNome, b.dataset.itemMacroDesc);
   });
-  $$('#regua-detail [data-del-item]').forEach(b => {
-    b.onclick = () => removerItem(r.id, b.dataset.delItem);
+  detailRoot.querySelectorAll('[data-del-item-macro]').forEach(b => {
+    b.onclick = () => removerItemMacro(r.id, b.dataset.delItemMacro);
   });
-  $$('#regua-detail [data-add-item-btn]').forEach(b => {
-    b.onclick = () => addItem(r.id, b.dataset.addItemBtn);
+  detailRoot.querySelectorAll('[data-add-item-macro-btn]').forEach(b => {
+    b.onclick = () => addItemMacro(r.id, b.dataset.addItemMacroBtn);
   });
-  $$('#regua-detail [data-add-nome]').forEach(input => {
+  detailRoot.querySelectorAll('[data-add-item-macro-nome]').forEach(input => {
     input.addEventListener('keydown', e => {
-      if (e.key === 'Enter') addItem(r.id, input.dataset.addNome);
+      if (e.key === 'Enter') addItemMacro(r.id, input.dataset.addItemMacroNome);
     });
   });
 
-  $('#regua-detail [data-add-nivel-btn]').onclick = () => addNivel(r.id);
-  $('#regua-detail [data-add-nivel]').addEventListener('keydown', e => {
-    if (e.key === 'Enter') addNivel(r.id);
+  detailRoot.querySelector('[data-add-macro-btn]').onclick = () => addMacro(r.id);
+  detailRoot.querySelector('[data-add-macro-nome]').addEventListener('keydown', e => {
+    if (e.key === 'Enter') addMacro(r.id);
   });
 };
-
-const criarRegua = async () => {}; // deprecated: inline form now lives in renderRegua()
 
 const editarRegua = async (id) => {
   const r = reguas.find(x => x.id === id);
@@ -556,9 +654,18 @@ const removerRegua = async (id) => {
 
 const addProf = async (reguaId) => {
   const input = $('#regua-detail [data-add-prof]');
+  const pesoInput = $('#regua-detail [data-add-prof-peso]');
   const nome = input.value.trim();
   if (!nome) return;
-  await fetchJSON(`/api/reguas/${reguaId}/proficiencias`, { method: 'POST', body: { nome } });
+  const body = { nome };
+  const pesoRaw = pesoInput.value.trim();
+  if (pesoRaw !== '') {
+    const n = Number(pesoRaw);
+    if (Number.isFinite(n)) body.peso = n;
+  }
+  await fetchJSON(`/api/reguas/${reguaId}/proficiencias`, { method: 'POST', body });
+  input.value = '';
+  pesoInput.value = '';
   await recarregarReguas();
 };
 
@@ -568,7 +675,12 @@ const editarProf = async (reguaId, profId) => {
   if (!p) return;
   const nome = prompt('Nome do nível de proficiência:', p.nome);
   if (nome === null || !nome.trim()) return;
-  await fetchJSON(`/api/reguas/${reguaId}/proficiencias/${profId}`, { method: 'PUT', body: { nome } });
+  const pesoStr = prompt('Peso (define a ordem no dropdown e a nota do gráfico):', String(p.peso ?? 0));
+  if (pesoStr === null) return;
+  const peso = Number(pesoStr);
+  const body = { nome };
+  if (Number.isFinite(peso)) body.peso = peso;
+  await fetchJSON(`/api/reguas/${reguaId}/proficiencias/${profId}`, { method: 'PUT', body });
   await recarregarReguas();
 };
 
@@ -578,61 +690,71 @@ const removerProf = async (reguaId, profId) => {
   await recarregarReguas();
 };
 
-const addNivel = async (reguaId) => {
-  const input = $('#regua-detail [data-add-nivel]');
-  const nome = input.value.trim();
-  if (!nome) return;
-  await fetchJSON(`/api/reguas/${reguaId}/niveis`, { method: 'POST', body: { nome } });
-  await recarregarReguas();
-};
-
-const editarNivel = async (reguaId, nivelId, nomeAtual) => {
-  const nome = prompt('Novo nome do nível:', nomeAtual);
-  if (nome === null || !nome.trim()) return;
-  await fetchJSON(`/api/reguas/${reguaId}/niveis/${nivelId}`, { method: 'PUT', body: { nome } });
-  await recarregarReguas();
-};
-
-const removerNivel = async (reguaId, nivelId) => {
-  if (!confirm('Remover este nível? Só é possível se não houver marcos nele.')) return;
-  try {
-    await fetchJSON(`/api/reguas/${reguaId}/niveis/${nivelId}`, { method: 'DELETE' });
-    await recarregarReguas();
-  } catch (e) {
-    alert(e.message);
-  }
-};
-
-const addItem = async (reguaId, nivelId) => {
-  const nomeInput = $(`#regua-detail [data-add-nome="${nivelId}"]`);
-  const descInput = $(`#regua-detail [data-add-desc="${nivelId}"]`);
+const addMacro = async (reguaId) => {
+  const nomeInput = $('#regua-detail [data-add-macro-nome]');
+  const descInput = $('#regua-detail [data-add-macro-desc]');
   const nome = nomeInput.value.trim();
-  const descricao = descInput.value.trim();
   if (!nome) return;
-  await fetchJSON(`/api/reguas/${reguaId}/niveis/${nivelId}/itens`, {
+  const descricao = descInput.value.trim();
+  await fetchJSON(`/api/reguas/${reguaId}/assuntos-macro`, {
     method: 'POST',
     body: { nome, descricao },
   });
+  nomeInput.value = '';
+  descInput.value = '';
   await recarregarReguas();
 };
 
-const editarItem = async (reguaId, key, nomeAtual, descAtual) => {
-  const [nivelId, itemId] = key.split('|');
-  const nome = prompt('Nome do marco:', nomeAtual);
+const editarMacro = async (reguaId, macroId, nomeAtual, descAtual) => {
+  const nome = prompt('Nome do assunto macro:', nomeAtual);
   if (nome === null || !nome.trim()) return;
   const descricao = prompt('Descrição (opcional):', descAtual || '');
   if (descricao === null) return;
-  await fetchJSON(`/api/reguas/${reguaId}/niveis/${nivelId}/itens/${itemId}`, {
+  await fetchJSON(`/api/reguas/${reguaId}/assuntos-macro/${macroId}`, {
     method: 'PUT',
     body: { nome, descricao },
   });
   await recarregarReguas();
 };
 
-const removerItem = async (reguaId, key) => {
-  const [nivelId, itemId] = key.split('|');
-  if (!confirm('Remover este marco? Também será desmarcado dos mentorados.')) return;
-  await fetchJSON(`/api/reguas/${reguaId}/niveis/${nivelId}/itens/${itemId}`, { method: 'DELETE' });
+const removerMacro = async (reguaId, macroId) => {
+  if (!confirm('Remover este assunto macro e todos os marcos dentro dele?')) return;
+  await fetchJSON(`/api/reguas/${reguaId}/assuntos-macro/${macroId}`, { method: 'DELETE' });
+  await recarregarReguas();
+};
+
+const addItemMacro = async (reguaId, macroId) => {
+  const nomeInput = $(`#regua-detail [data-add-item-macro-nome="${macroId}"]`);
+  const descInput = $(`#regua-detail [data-add-item-macro-desc="${macroId}"]`);
+  const nome = nomeInput.value.trim();
+  if (!nome) return;
+  const descricao = descInput.value.trim();
+  await fetchJSON(`/api/reguas/${reguaId}/assuntos-macro/${macroId}/itens`, {
+    method: 'POST',
+    body: { nome, descricao },
+  });
+  nomeInput.value = '';
+  descInput.value = '';
+  await recarregarReguas();
+};
+
+const editarItemMacro = async (reguaId, key, nomeAtual, descAtual) => {
+  const [macroId, itemId] = key.split('|');
+  const nome = prompt('Nome do marco:', nomeAtual);
+  if (nome === null || !nome.trim()) return;
+  const descricao = prompt('Descrição (opcional):', descAtual || '');
+  if (descricao === null) return;
+  await fetchJSON(`/api/reguas/${reguaId}/assuntos-macro/${macroId}/itens/${itemId}`, {
+    method: 'PUT',
+    body: { nome, descricao },
+  });
+  await recarregarReguas();
+};
+
+const removerItemMacro = async (reguaId, key) => {
+  const [macroId, itemId] = key.split('|');
+  if (!confirm('Remover este marco?')) return;
+  await fetchJSON(`/api/reguas/${reguaId}/assuntos-macro/${macroId}/itens/${itemId}`, { method: 'DELETE' });
   await recarregarReguas();
 };
 
