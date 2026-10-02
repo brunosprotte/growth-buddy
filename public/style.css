@@ -3,9 +3,9 @@
   --bordo: #7a1f3d;
   --bordo-deep: #5a1530;
   --bordo-soft: #a8456a;
-  --cream: #f8f1e7;
-  --cream-surface: #fdf8f0;
-  --cream-warm: #efe4d2;
+  --cream: #f7e8e2;
+  --cream-surface: #fbf1ec;
+  --cream-warm: #ecd9ce;
   --ink: #2a1d1d;
   --ink-soft: #5a4242;
   --ink-mute: #6e5a5a;
@@ -15,9 +15,35 @@
   --rust: #b85940;
   --moss: #6b8e4e;
   --bordo-night: #4a1828;
+  --on-accent: #f7e8e2;
 
   --font-display: 'Fraunces', Georgia, 'Times New Roman', serif;
   --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --cream: #181012;
+    --cream-surface: #221017;
+    --cream-warm: #3a1d28;
+    --ink: #f5ead9;
+    --ink-soft: #d8c8b4;
+    --ink-mute: #b8a594;
+    --ink-faint: #8a7474;
+    --bordo: #6b1830;
+    --bordo-deep: #4a0f20;
+    --bordo-soft: #a8456a;
+    --bordo-night: #3a0817;
+    --gold: #d4b878;
+    --sand: #c49565;
+    --rust: #d97560;
+    --moss: #93b577;
+  }
+  .brand-mark { background: var(--on-accent); color: var(--bordo); }
+  input, textarea, select { background: var(--cream-surface); border-color: var(--cream-warm); color: var(--ink); }
+  .stat .value { color: var(--bordo-soft); }
+  .progress-fill { background: var(--bordo-soft); }
+  .nivel-panel header { background: var(--bordo-night); }
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -39,7 +65,7 @@ body {
 /* ===== Sidebar ===== */
 .sidebar {
   background: var(--bordo);
-  color: var(--cream);
+  color: var(--on-accent);
   padding: 1.75rem 1.25rem;
   display: flex;
   flex-direction: column;
@@ -51,7 +77,7 @@ body {
 .brand { display: flex; gap: 0.75rem; align-items: center; }
 .brand-mark {
   width: 44px; height: 44px;
-  background: var(--cream);
+  background: var(--on-accent);
   color: var(--bordo);
   font-family: var(--font-display);
   font-weight: 700;
@@ -64,13 +90,13 @@ body {
   font-weight: 600;
   font-size: 1.15rem;
   letter-spacing: -0.01em;
-  color: var(--cream);
+  color: var(--on-accent);
 }
-.brand p { font-size: 0.8125rem; color: color-mix(in srgb, var(--cream) 70%, transparent); }
+.brand p { font-size: 0.8125rem; color: color-mix(in srgb, var(--on-accent) 70%, transparent); }
 
 nav { display: flex; flex-direction: column; gap: 0.15rem; }
 nav a {
-  color: color-mix(in srgb, var(--cream) 78%, transparent);
+  color: color-mix(in srgb, var(--on-accent) 92%, transparent);
   text-decoration: none;
   padding: 0.6rem 0.8rem;
   border-radius: 6px;
@@ -81,15 +107,15 @@ nav a {
   gap: 0.7rem;
   transition: background 0.15s, color 0.15s;
 }
-nav a:hover { background: color-mix(in srgb, var(--cream) 8%, transparent); color: var(--cream); }
-nav a.active { background: var(--cream); color: var(--bordo); }
+nav a:hover { background: color-mix(in srgb, var(--on-accent) 12%, transparent); color: var(--on-accent); }
+nav a.active { background: var(--on-accent); color: var(--bordo-deep); }
 .nav-icon { font-size: 1rem; opacity: 0.85; }
 
 .sidebar-foot {
   margin-top: auto;
   font-size: 0.8125rem;
-  color: color-mix(in srgb, var(--cream) 50%, transparent);
-  border-top: 1px solid color-mix(in srgb, var(--cream) 15%, transparent);
+  color: color-mix(in srgb, var(--on-accent) 50%, transparent);
+  border-top: 1px solid color-mix(in srgb, var(--on-accent) 15%, transparent);
   padding-top: 1rem;
 }
 
@@ -169,14 +195,14 @@ tbody td { font-size: 0.92rem; }
   font-size: 0.8125rem;
   font-weight: 600;
   background: var(--bordo);
-  color: var(--cream);
+  color: var(--on-accent);
 }
 .nivel-badge.junior { background: var(--gold); color: var(--ink); }
 .nivel-badge.pleno  { background: var(--bordo-soft); }
 .nivel-badge.senior { background: var(--bordo-deep); }
 .nivel-badge.trainee         { background: var(--sand); color: var(--ink); }
-.nivel-badge.especialista-i  { background: var(--bordo); color: var(--cream); }
-.nivel-badge.especialista-ii { background: var(--bordo-night); color: var(--cream); }
+.nivel-badge.especialista-i  { background: var(--bordo); color: var(--on-accent); }
+.nivel-badge.especialista-ii { background: var(--bordo-night); color: var(--on-accent); }
 
 .regua-tag {
   display: inline-block;
@@ -260,7 +286,7 @@ textarea { min-height: 70px; resize: vertical; }
 
 button {
   background: var(--bordo);
-  color: var(--cream);
+  color: var(--on-accent);
   border: none;
   padding: 0.6rem 1.1rem;
   border-radius: 6px;
@@ -384,7 +410,7 @@ button.small { padding: 0.35rem 0.7rem; font-size: 0.78rem; }
 .regua-tab:hover { border-color: var(--bordo-soft); color: var(--ink); }
 .regua-tab.active {
   background: var(--bordo);
-  color: var(--cream);
+  color: var(--on-accent);
   border-color: var(--bordo);
 }
 .regua-tab.add {
@@ -480,7 +506,7 @@ button.small { padding: 0.35rem 0.7rem; font-size: 0.78rem; }
 .nivel-panel header {
   padding: 0.85rem 1.2rem;
   background: var(--bordo);
-  color: var(--cream);
+  color: var(--on-accent);
 }
 .nivel-panel.junior header { background: var(--gold); color: var(--ink); }
 .nivel-panel.pleno header  { background: var(--bordo-soft); }
