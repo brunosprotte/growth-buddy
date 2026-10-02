@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Growth Buddy — Régua de Carreira Tech</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <aside class="sidebar">
+    <div class="brand">
+      <span class="brand-mark">Gb</span>
+      <div>
+        <h1>Growth Buddy</h1>
+        <p>Régua de carreira tech</p>
+      </div>
+    </div>
+    <nav>
+      <a href="#" data-view="dashboard" class="active">
+        <span class="nav-icon">▦</span> Dashboard
+      </a>
+      <a href="#" data-view="mentorados">
+        <span class="nav-icon">◎</span> Mentorados
+      </a>
+      <a href="#" data-view="regua">
+        <span class="nav-icon">▤</span> Réguas técnicas
+      </a>
+    </nav>
+    <div class="sidebar-foot">
+      <p>Sem login. Dados locais.</p>
+    </div>
+  </aside>
+
+  <main class="content">
+    <!-- DASHBOARD -->
+    <section class="view" id="view-dashboard">
+      <header class="view-header">
+        <p class="eyebrow">Visão geral</p>
+        <h2>Como sua turma está evoluindo</h2>
+      </header>
+      <div class="stats" id="stats"></div>
+      <div class="card-table">
+        <table id="tabela-dashboard">
+          <thead>
+            <tr>
+              <th>Mentorado</th>
+              <th>Régua / Nível</th>
+              <th>Progresso</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+        <p class="vazio" id="vazio-dashboard" hidden>Nenhum mentorado ainda. Vá em <strong>Mentorados</strong> para adicionar.</p>
+      </div>
+    </section>
+
+    <!-- MENTORADOS -->
+    <section class="view" id="view-mentorados" hidden>
+      <header class="view-header">
+        <p class="eyebrow">Pessoas</p>
+        <h2>Seus mentorados</h2>
+      </header>
+
+      <div class="panel">
+        <h3>Novo mentorado</h3>
+        <form id="form-mentorado">
+          <div class="form-grid">
+            <label>Nome
+              <input name="nome" required maxlength="80">
+            </label>
+            <label>Objetivo
+              <input name="objetivo" placeholder="ex: virar pleno backend" maxlength="200">
+            </label>
+            <label>Régua técnica
+              <select name="reguaId" id="select-regua-form"></select>
+            </label>
+            <label>Nível atual
+              <select name="nivelId" id="select-nivel-form"></select>
+            </label>
+          </div>
+          <label>Notas
+            <textarea name="notas" maxlength="500"></textarea>
+          </label>
+          <button type="submit">Adicionar mentorado</button>
+        </form>
+      </div>
+
+      <div class="lista" id="lista-mentorados"></div>
+    </section>
+
+    <!-- RÉGUAS -->
+    <section class="view" id="view-regua" hidden>
+      <header class="view-header">
+        <p class="eyebrow">Trilhas técnicas</p>
+        <h2>Réguas técnicas</h2>
+        <p class="sub">Cada régua tem seus próprios níveis, marcos e níveis de proficiência.</p>
+      </header>
+
+      <div class="regua-tabs" id="regua-tabs"></div>
+      <div id="regua-detail"></div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
