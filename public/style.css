@@ -198,8 +198,12 @@ tbody td { font-size: 0.92rem; }
 }
 .progress-fill {
   height: 100%;
+  width: 100%;
   background: var(--bordo);
-  transition: width 0.3s;
+  transform: scaleX(var(--pct, 0));
+  transform-origin: left center;
+  transition: transform 0.3s;
+  border-radius: 3px;
 }
 .progress-text { font-size: 0.78rem; color: var(--ink-soft); }
 

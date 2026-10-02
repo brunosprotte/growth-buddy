@@ -54,13 +54,34 @@ const carregar = async () => {
       fetchJSON('/api/reguas'),
     ]);
     if (!activeReguaId && reguas.length) activeReguaId = reguas[0].id;
-    renderDashboard();
-    renderMentorados();
-    renderRegua();
-    popularSelectRegua();
+    renderAll();
   } catch (e) {
     console.error(e);
   }
+};
+
+const renderAll = () => {
+  renderDashboard();
+  renderMentorados();
+  renderRegua();
+  popularSelectRegua();
+};
+
+// Targeted re-fetches after mutations to avoid a full reload flicker
+const recarregarMentorados = async () => {
+  mentorados = await fetchJSON('/api/mentorados');
+  renderDashboard();
+  renderMentorados();
+};
+
+const recarregarReguas = async () => {
+  reguas = await fetchJSON('/api/reguas');
+  if (activeReguaId && !reguas.find(r => r.id === activeReguaId)) {
+    activeReguaId = reguas[0]?.id;
+  }
+  renderDashboard();
+  renderRegua();
+  popularSelectRegua();
 };
 
 // --- Dashboard ---
@@ -123,7 +144,7 @@ const renderDashboard = () => {
         </td>
         <td>
           <div class="progress-cell">
-            <div class="progress-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}" aria-label="Progresso de ${escape(m.nome)} no nível ${escape(nivel?.nome || '')}"><div class="progress-fill" style="width:${pct}%"></div></div>
+            <div class="progress-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}" aria-label="Progresso de ${escape(m.nome)} no nível ${escape(nivel?.nome || '')}"><div class="progress-fill" style="--pct:${pct / 100}"></div></div>
             <div class="progress-text">${marcadosNoNivel} de ${totalItens} marcos no nível</div>
           </div>
         </td>
@@ -263,7 +284,7 @@ const renderMentorados = () => {
       const id = form.dataset.editForm;
       const data = Object.fromEntries(new FormData(form));
       await fetchJSON(`/api/mentorados/${id}`, { method: 'PUT', body: data });
-      carregar();
+      await recarregarMentorados();
     };
   });
 
@@ -300,13 +321,24 @@ $('#form-mentorado').onsubmit = async (e) => {
   const data = Object.fromEntries(new FormData(e.target));
   await fetchJSON('/api/mentorados', { method: 'POST', body: data });
   e.target.reset();
-  popularSelectRegua();
-  carregar();
+  await recarregarMentorados();
 };
 
 const atualizarMentorado = async (id, patch) => {
-  await fetchJSON(`/api/mentorados/${id}`, { method: 'PUT', body: patch });
-  carregar();
+  // optimistic: update local state, then PUT, rollback on error
+  const idx = mentorados.findIndex(m => m.id === id);
+  const snapshot = idx >= 0 ? { ...mentorados[idx] } : null;
+  if (snapshot) Object.assign(mentorados[idx], patch);
+  renderDashboard();
+  renderMentorados();
+  try {
+    await fetchJSON(`/api/mentorados/${id}`, { method: 'PUT', body: patch });
+  } catch (err) {
+    if (snapshot) mentorados[idx] = snapshot;
+    renderDashboard();
+    renderMentorados();
+    alert(err.message);
+  }
 };
 
 const editarMentorado = async (id) => {
@@ -321,7 +353,7 @@ const editarMentorado = async (id) => {
 const removerMentorado = async (id) => {
   if (!confirm('Remover este mentorado?')) return;
   await fetchJSON(`/api/mentorados/${id}`, { method: 'DELETE' });
-  carregar();
+  await recarregarMentorados();
 };
 
 // --- Réguas ---
@@ -450,7 +482,7 @@ const renderRegua = () => {
       const created = await fetchJSON('/api/reguas', { method: 'POST', body: data });
       newReguaFormOpen = false;
       activeReguaId = created.id;
-      carregar();
+      await recarregarReguas();
     };
   }
   $('#regua-detail [data-cancel-new-regua]')?.addEventListener('click', () => {
@@ -507,7 +539,7 @@ const editarRegua = async (id) => {
   const descricao = prompt('Descrição:', r.descricao || '');
   if (descricao === null) return;
   await fetchJSON(`/api/reguas/${id}`, { method: 'PUT', body: { nome, descricao } });
-  carregar();
+  await recarregarReguas();
 };
 
 const removerRegua = async (id) => {
@@ -516,8 +548,7 @@ const removerRegua = async (id) => {
   if (!confirm(`Remover a régua "${r.nome}"? Esta ação não pode ser desfeita.`)) return;
   try {
     await fetchJSON(`/api/reguas/${id}`, { method: 'DELETE' });
-    activeReguaId = reguas.find(x => x.id !== id)?.id;
-    carregar();
+    await recarregarReguas();
   } catch (e) {
     alert(e.message);
   }
@@ -528,7 +559,7 @@ const addProf = async (reguaId) => {
   const nome = input.value.trim();
   if (!nome) return;
   await fetchJSON(`/api/reguas/${reguaId}/proficiencias`, { method: 'POST', body: { nome } });
-  carregar();
+  await recarregarReguas();
 };
 
 const editarProf = async (reguaId, profId) => {
@@ -538,13 +569,13 @@ const editarProf = async (reguaId, profId) => {
   const nome = prompt('Nome do nível de proficiência:', p.nome);
   if (nome === null || !nome.trim()) return;
   await fetchJSON(`/api/reguas/${reguaId}/proficiencias/${profId}`, { method: 'PUT', body: { nome } });
-  carregar();
+  await recarregarReguas();
 };
 
 const removerProf = async (reguaId, profId) => {
   if (!confirm('Remover este nível de proficiência? Será desmarcado dos mentorados.')) return;
   await fetchJSON(`/api/reguas/${reguaId}/proficiencias/${profId}`, { method: 'DELETE' });
-  carregar();
+  await recarregarReguas();
 };
 
 const addNivel = async (reguaId) => {
@@ -552,21 +583,21 @@ const addNivel = async (reguaId) => {
   const nome = input.value.trim();
   if (!nome) return;
   await fetchJSON(`/api/reguas/${reguaId}/niveis`, { method: 'POST', body: { nome } });
-  carregar();
+  await recarregarReguas();
 };
 
 const editarNivel = async (reguaId, nivelId, nomeAtual) => {
   const nome = prompt('Novo nome do nível:', nomeAtual);
   if (nome === null || !nome.trim()) return;
   await fetchJSON(`/api/reguas/${reguaId}/niveis/${nivelId}`, { method: 'PUT', body: { nome } });
-  carregar();
+  await recarregarReguas();
 };
 
 const removerNivel = async (reguaId, nivelId) => {
   if (!confirm('Remover este nível? Só é possível se não houver marcos nele.')) return;
   try {
     await fetchJSON(`/api/reguas/${reguaId}/niveis/${nivelId}`, { method: 'DELETE' });
-    carregar();
+    await recarregarReguas();
   } catch (e) {
     alert(e.message);
   }
@@ -582,7 +613,7 @@ const addItem = async (reguaId, nivelId) => {
     method: 'POST',
     body: { nome, descricao },
   });
-  carregar();
+  await recarregarReguas();
 };
 
 const editarItem = async (reguaId, key, nomeAtual, descAtual) => {
@@ -595,14 +626,14 @@ const editarItem = async (reguaId, key, nomeAtual, descAtual) => {
     method: 'PUT',
     body: { nome, descricao },
   });
-  carregar();
+  await recarregarReguas();
 };
 
 const removerItem = async (reguaId, key) => {
   const [nivelId, itemId] = key.split('|');
   if (!confirm('Remover este marco? Também será desmarcado dos mentorados.')) return;
   await fetchJSON(`/api/reguas/${reguaId}/niveis/${nivelId}/itens/${itemId}`, { method: 'DELETE' });
-  carregar();
+  await recarregarReguas();
 };
 
 carregar();
