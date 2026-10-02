@@ -10,11 +10,8 @@
   --ink-soft: #5a4242;
   --ink-mute: #6e5a5a;
   --ink-faint: #806060;
-  --gold: #c9a961;
-  --sand: #d4a574;
   --rust: #b85940;
   --moss: #6b8e4e;
-  --bordo-night: #4a1828;
   --on-accent: #f7e8e2;
 
   --font-display: 'Fraunces', Georgia, 'Times New Roman', serif;
@@ -33,9 +30,6 @@
     --bordo: #6b1830;
     --bordo-deep: #4a0f20;
     --bordo-soft: #a8456a;
-    --bordo-night: #3a0817;
-    --gold: #d4b878;
-    --sand: #c49565;
     --rust: #d97560;
     --moss: #93b577;
   }
@@ -43,7 +37,6 @@
   input, textarea, select { background: var(--cream-surface); border-color: var(--cream-warm); color: var(--ink); }
   .stat .value { color: var(--bordo-soft); }
   .progress-fill { background: var(--bordo-soft); }
-  .nivel-panel header { background: var(--bordo-night); }
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -204,7 +197,7 @@ button.confirming:hover { background: color-mix(in srgb, var(--rust) 85%, transp
   overflow: hidden;
 }
 table { width: 100%; border-collapse: collapse; }
-th, td { padding: 0.85rem 1.1rem; text-align: left; }
+th, td { padding: 1rem 1.25rem; text-align: left; }
 th {
   background: var(--cream-warm);
   font-size: 0.8125rem;
