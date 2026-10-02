@@ -310,9 +310,16 @@ button {
 button:hover { background: var(--bordo-deep); }
 button:disabled { opacity: 0.55; cursor: not-allowed; background: var(--bordo); }
 button:disabled:hover { background: var(--bordo); }
+/* Default focus ring: bordo — visible on cream/transparent surfaces.
+   Primary buttons and the active tab sit on a bordo surface, so invert
+   to on-accent for those two cases. */
 button:focus-visible {
-  outline: 2px solid var(--on-accent);
+  outline: 2px solid var(--bordo);
   outline-offset: 2px;
+}
+button:not(.ghost):not(.danger):focus-visible,
+.regua-tab.active:focus-visible {
+  outline-color: var(--on-accent);
 }
 button.ghost {
   background: transparent;
@@ -618,17 +625,11 @@ button.small { padding: 0.35rem 0.7rem; font-size: 0.78rem; }
 .macro-card {
   background: var(--cream-surface);
   border: 1px solid var(--cream-warm);
-  border-left: 3px solid var(--rust);
   border-radius: 10px;
   padding: 1.4rem 1.5rem;
   display: grid;
   gap: 1rem;
 }
-.macro-card:nth-of-type(2) { border-left-color: var(--bordo-soft); }
-.macro-card:nth-of-type(3) { border-left-color: var(--bordo); }
-.macro-card:nth-of-type(4) { border-left-color: var(--bordo-deep); }
-.macro-card:nth-of-type(5) { border-left-color: var(--ink-soft); }
-.macro-card:nth-of-type(6) { border-left-color: var(--ink); }
 .macro-card header {
   display: flex;
   justify-content: space-between;
