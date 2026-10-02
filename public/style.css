@@ -137,6 +137,12 @@ nav a.active { background: var(--on-accent); color: var(--bordo-deep); }
 }
 .view-header h2:focus { outline: none; }
 
+/* Inline metadata lines (avoid one-off style="" attributes in JS) */
+.meta-sub { color: var(--ink-mute); font-size: 0.78rem; }
+.meta-sub-faint { color: var(--ink-faint); font-size: 0.78rem; }
+.vazio-inline { color: var(--ink-mute); font-size: 0.85rem; }
+.vazio-pad { padding: 0.5rem; }
+
 /* Inline edit + inline confirm */
 .inline-edit {
   margin-top: 0.5rem;

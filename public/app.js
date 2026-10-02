@@ -245,8 +245,8 @@ const renderDashboard = () => {
       <tr>
         <td>
           <strong>${escape(m.nome)}</strong>
-          ${m.objetivo ? `<div style="color:var(--ink-mute);font-size:0.78rem">${escape(m.objetivo)}</div>` : ''}
-          ${m.criadoEm ? `<div style="color:var(--ink-faint);font-size:0.78rem">desde ${formatDate(m.criadoEm)}</div>` : ''}
+          ${m.objetivo ? `<div class="meta-sub">${escape(m.objetivo)}</div>` : ''}
+          ${m.criadoEm ? `<div class="meta-sub-faint">desde ${formatDate(m.criadoEm)}</div>` : ''}
         </td>
         <td>
           ${regua ? `<span class="regua-tag">${escape(regua.nome)}</span>` : ''}
@@ -311,7 +311,7 @@ const renderMentorados = () => {
           ${itensHtml}
         </div>
       `;
-    }).join('') : '<p class="vazio" style="padding:0.5rem">Esta régua ainda não tem assuntos macro.</p>';
+    }).join('') : '<p class="vazio vazio-pad">Esta régua ainda não tem assuntos macro.</p>';
 
     const scores = calcularScorePorAssunto(m, regua);
     const starfishBlock = scores.length ? `
@@ -541,7 +541,7 @@ const renderRegua = () => {
               </div>
             </form>
           </div>
-        `).join('') || '<span style="color:var(--ink-mute);font-size:0.85rem">Nenhum nível definido.</span>'}
+        `).join('') || '<span class="vazio-inline">Nenhum nível definido.</span>'}
       </div>
       <div class="add-prof">
         <input placeholder="Nome do nível (ex: Conhecimento sólido)" data-add-prof maxlength="120">
