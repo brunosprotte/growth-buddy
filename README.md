@@ -6,6 +6,19 @@ App leve, sem login, com dados em arquivo JSON local. Cada trilha técnica tem
 seus próprios níveis, marcos e níveis de proficiência, e o mentorado pode ser
 marcado item a item conforme progride.
 
+## Screenshots
+
+**Dashboard** — visão geral da turma
+![Dashboard](./dashboard.png)
+
+**Mentorados** — marcação item a item por pilar de proficiência
+![Mentorados — visão geral](./mentorados_1.png)
+![Mentorados — visualização por assunto](./mentorados_2.png)
+
+**Réguas técnicas** — CRUD de níveis, marcos e assuntos macro
+![Réguas técnicas — visão geral](./regua_tecnica-1.png)
+![Réguas técnicas — edição de marcos](./regua_tecnica_2.png)
+
 ## Features
 
 - **Réguas técnicas por objetivo** (Backend, Frontend, QA, PO, etc.) — crie quantas quiser.

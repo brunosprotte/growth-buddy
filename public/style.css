@@ -113,7 +113,7 @@ nav a.active { background: var(--on-accent); color: var(--bordo-deep); }
 }
 
 /* ===== Content ===== */
-.content { padding: 2.5rem 3rem; max-width: 1100px; }
+.content { padding: 2.5rem 3rem; max-width: 1600px; }
 
 .view-header { margin-bottom: 2rem; }
 .view-header h2 {
@@ -554,8 +554,8 @@ button.small { padding: 0.35rem 0.7rem; font-size: 0.78rem; }
   background: var(--cream-surface);
   border: 1px solid var(--cream-warm);
   border-radius: 10px;
-  padding: 1.25rem 1.4rem;
-  margin-bottom: 1.5rem;
+  padding: 1.4rem 1.5rem;
+  margin-bottom: 2rem;
 }
 .profs-section h4 {
   font-family: var(--font-display);
@@ -604,8 +604,9 @@ button.small { padding: 0.35rem 0.7rem; font-size: 0.78rem; }
 /* ===== Réguas: assuntos macro ===== */
 .macros-list {
   display: grid;
-  gap: 1rem;
-  margin-bottom: 1.5rem;
+  grid-template-columns: 1fr;
+  gap: 1.25rem;
+  margin-bottom: 2rem;
 }
 .macros-list > h4 {
   font-family: var(--font-display);
@@ -617,11 +618,17 @@ button.small { padding: 0.35rem 0.7rem; font-size: 0.78rem; }
 .macro-card {
   background: var(--cream-surface);
   border: 1px solid var(--cream-warm);
+  border-left: 3px solid var(--rust);
   border-radius: 10px;
-  padding: 1.1rem 1.3rem;
+  padding: 1.4rem 1.5rem;
   display: grid;
-  gap: 0.85rem;
+  gap: 1rem;
 }
+.macro-card:nth-of-type(2) { border-left-color: var(--bordo-soft); }
+.macro-card:nth-of-type(3) { border-left-color: var(--bordo); }
+.macro-card:nth-of-type(4) { border-left-color: var(--bordo-deep); }
+.macro-card:nth-of-type(5) { border-left-color: var(--ink-soft); }
+.macro-card:nth-of-type(6) { border-left-color: var(--ink); }
 .macro-card header {
   display: flex;
   justify-content: space-between;
@@ -657,7 +664,7 @@ button.small { padding: 0.35rem 0.7rem; font-size: 0.78rem; }
   gap: 0.45rem;
 }
 .macro-itens li {
-  padding: 0.65rem 0.85rem;
+  padding: 0.85rem 1rem;
   border-radius: 6px;
   font-size: 0.92rem;
   background: var(--cream);
@@ -706,7 +713,7 @@ button.small { padding: 0.35rem 0.7rem; font-size: 0.78rem; }
   background: var(--cream-surface);
   border: 1px solid var(--cream-warm);
   border-radius: 10px;
-  padding: 1.25rem 1.4rem;
+  padding: 1.4rem 1.5rem;
   margin-top: 0.5rem;
 }
 .add-macro > h4 {

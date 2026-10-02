@@ -507,8 +507,8 @@ const renderRegua = () => {
         <h3 data-display="regua-nome">${escape(r.nome)}</h3>
         <p data-display="regua-desc">${escape(r.descricao || 'Sem descrição.')}</p>
         <form class="inline-edit" data-edit-regua-form hidden>
-          <input data-edit-regua-nome value="${escape(r.nome)}" required maxlength="80" aria-label="Nome da régua">
-          <input data-edit-regua-desc value="${escape(r.descricao || '')}" maxlength="300" placeholder="Descrição (opcional)" aria-label="Descrição da régua">
+          <input name="nome" data-edit-regua-nome value="${escape(r.nome)}" required maxlength="80" aria-label="Nome da régua">
+          <input name="descricao" data-edit-regua-desc value="${escape(r.descricao || '')}" maxlength="300" placeholder="Descrição (opcional)" aria-label="Descrição da régua">
           <div class="edit-actions">
             <button type="submit">Salvar</button>
             <button type="button" class="ghost" data-cancel-edit-regua>Cancelar</button>
@@ -533,8 +533,8 @@ const renderRegua = () => {
               <button class="danger mini" data-del-prof="${p.id}">×</button>
             </span>
             <form class="inline-edit" data-edit-prof-form="${p.id}" hidden>
-              <input data-edit-prof-nome="${p.id}" value="${escape(p.nome)}" required maxlength="120" aria-label="Nome do nível">
-              <input type="number" data-edit-prof-peso="${p.id}" value="${p.peso}" min="0" max="100" step="1" aria-label="Peso do nível">
+              <input name="nome" data-edit-prof-nome="${p.id}" value="${escape(p.nome)}" required maxlength="120" aria-label="Nome do nível">
+              <input name="peso" type="number" data-edit-prof-peso="${p.id}" value="${p.peso}" min="0" max="100" step="1" aria-label="Peso do nível">
               <div class="edit-actions">
                 <button type="submit">Salvar</button>
                 <button type="button" class="ghost" data-cancel-edit-prof="${p.id}">Cancelar</button>
@@ -560,8 +560,8 @@ const renderRegua = () => {
               ${macro.descricao ? `<p data-display="macro-desc">${escape(macro.descricao)}</p>` : ''}
               <p class="contador">${macro.itens.length} ${macro.itens.length === 1 ? 'marco' : 'marcos'}</p>
               <form class="inline-edit" data-edit-macro-form="${macro.id}" hidden>
-                <input data-edit-macro-nome="${macro.id}" value="${escape(macro.nome)}" required maxlength="80" aria-label="Nome do assunto">
-                <input data-edit-macro-desc="${macro.id}" value="${escape(macro.descricao || '')}" maxlength="300" placeholder="Descrição (opcional)" aria-label="Descrição do assunto">
+                <input name="nome" data-edit-macro-nome="${macro.id}" value="${escape(macro.nome)}" required maxlength="80" aria-label="Nome do assunto">
+                <input name="descricao" data-edit-macro-desc="${macro.id}" value="${escape(macro.descricao || '')}" maxlength="300" placeholder="Descrição (opcional)" aria-label="Descrição do assunto">
                 <div class="edit-actions">
                   <button type="submit">Salvar</button>
                   <button type="button" class="ghost" data-cancel-edit-macro="${macro.id}">Cancelar</button>
@@ -587,8 +587,8 @@ const renderRegua = () => {
                   </div>
                 </div>
                 <form class="inline-edit" data-edit-item-form="${macro.id}|${item.id}" hidden>
-                  <input data-edit-item-nome="${macro.id}|${item.id}" value="${escape(item.nome)}" required maxlength="120" aria-label="Nome do marco">
-                  <textarea data-edit-item-desc="${macro.id}|${item.id}" maxlength="300" placeholder="Descrição (opcional)" aria-label="Descrição do marco">${escape(item.descricao || '')}</textarea>
+                  <input name="nome" data-edit-item-nome="${macro.id}|${item.id}" value="${escape(item.nome)}" required maxlength="120" aria-label="Nome do marco">
+                  <textarea name="descricao" data-edit-item-desc="${macro.id}|${item.id}" maxlength="300" placeholder="Descrição (opcional)" aria-label="Descrição do marco">${escape(item.descricao || '')}</textarea>
                   <div class="edit-actions">
                     <button type="submit">Salvar</button>
                     <button type="button" class="ghost" data-cancel-edit-item="${macro.id}|${item.id}">Cancelar</button>
