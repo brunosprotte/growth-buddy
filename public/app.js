@@ -2,6 +2,7 @@
 let mentorados = [];
 let reguas = [];
 let activeReguaId = null;
+let newReguaFormOpen = false;
 
 // Helpers
 const $ = (s, p = document) => p.querySelector(s);
@@ -20,6 +21,13 @@ const fetchJSON = async (url, opts = {}) => {
 const escape = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
 }[c]));
+
+const formatDate = (iso) => {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (isNaN(d)) return '';
+  return new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' }).format(d);
+};
 
 const reguaAtiva = () => reguas.find(r => r.id === activeReguaId) || reguas[0];
 
@@ -56,7 +64,11 @@ const carregar = async () => {
 const renderDashboard = () => {
   const total = mentorados.length;
   const ativos = mentorados.filter(m => m.status === 'ativo').length;
-  const marcados = mentorados.reduce((s, m) => s + Object.keys(m.proficiencias || {}).length, 0);
+  const marcados = mentorados.reduce((s, m) => {
+    const regua = reguas.find(r => r.id === m.reguaId);
+    const nivel = regua?.niveis.find(n => n.id === m.nivelId);
+    return s + (nivel ? nivel.itens.filter(i => m.proficiencias?.[i.id]).length : 0);
+  }, 0);
 
   $('#stats').innerHTML = `
     <div class="stat">
@@ -65,9 +77,9 @@ const renderDashboard = () => {
       <div class="hint">${ativos} ativos</div>
     </div>
     <div class="stat">
-      <div class="label">Marcações</div>
+      <div class="label">Marcos no nível</div>
       <div class="value">${marcados}</div>
-      <div class="hint">proficiências registradas</div>
+      <div class="hint">concluídos no nível atual de cada mentorado</div>
     </div>
     <div class="stat">
       <div class="label">Réguas ativas</div>
@@ -100,6 +112,7 @@ const renderDashboard = () => {
         <td>
           <strong>${escape(m.nome)}</strong>
           ${m.objetivo ? `<div style="color:var(--ink-mute);font-size:0.78rem">${escape(m.objetivo)}</div>` : ''}
+          ${m.criadoEm ? `<div style="color:var(--ink-faint);font-size:0.78rem">desde ${formatDate(m.criadoEm)}</div>` : ''}
         </td>
         <td>
           ${regua ? `<span class="regua-tag">${escape(regua.nome)}</span>` : ''}
@@ -108,7 +121,7 @@ const renderDashboard = () => {
         <td>
           <div class="progress-cell">
             <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
-            <div class="progress-text">${marcadosNoNivel} de ${totalItens} marcos marcados</div>
+            <div class="progress-text">${marcadosNoNivel} de ${totalItens} marcos no nível</div>
           </div>
         </td>
         <td><span class="status-tag ${m.status}">${m.status}</span></td>
@@ -185,9 +198,37 @@ const renderMentorados = () => {
             <span class="regua-tag">${escape(regua.nome)}</span>
             <span class="status-tag ${m.status}">${m.status}</span>
             ${m.objetivo ? ` · ${escape(m.objetivo)}` : ''}
+            ${m.criadoEm ? ` · desde ${formatDate(m.criadoEm)}` : ''}
           </div>
           ${niveisHtml}
           ${m.notas ? `<div class="notas">${escape(m.notas)}</div>` : ''}
+          <form class="edit-form" data-edit-form="${m.id}" hidden>
+            <div class="form-grid">
+              <label>Nome
+                <input name="nome" value="${escape(m.nome)}" required maxlength="80">
+              </label>
+              <label>Objetivo
+                <input name="objetivo" value="${escape(m.objetivo || '')}" maxlength="200" placeholder="ex: virar pleno backend">
+              </label>
+              <label>Régua
+                <select name="reguaId" data-edit-regua="${escape(m.id)}">
+                  ${reguas.map(r => `<option value="${r.id}" ${r.id === m.reguaId ? 'selected' : ''}>${escape(r.nome)}</option>`).join('')}
+                </select>
+              </label>
+              <label>Nível
+                <select name="nivelId" data-edit-nivel="${escape(m.id)}">
+                  ${regua.niveis.map(n => `<option value="${n.id}" ${n.id === m.nivelId ? 'selected' : ''}>${escape(n.nome)}</option>`).join('')}
+                </select>
+              </label>
+            </div>
+            <label>Notas
+              <textarea name="notas" maxlength="500">${escape(m.notas || '')}</textarea>
+            </label>
+            <div class="acoes">
+              <button type="submit">Salvar</button>
+              <button type="button" class="ghost" data-cancel-edit="${escape(m.id)}">Cancelar</button>
+            </div>
+          </form>
         </div>
         <div class="acoes">
           <select data-status="${m.id}">
@@ -201,6 +242,34 @@ const renderMentorados = () => {
       </div>
     `;
   }).join('');
+
+  // Cascade: editing regua updates its nivel options
+  $$('[data-edit-regua]').forEach(sel => {
+    sel.onchange = () => {
+      const id = sel.dataset.editRegua;
+      const r = reguas.find(x => x.id === sel.value);
+      const nivelSel = document.querySelector(`[data-edit-nivel="${id}"]`);
+      if (!r || !nivelSel) return;
+      nivelSel.innerHTML = r.niveis.map(n => `<option value="${n.id}">${escape(n.nome)}</option>`).join('');
+    };
+  });
+
+  $$('[data-edit-form]').forEach(form => {
+    form.onsubmit = async (e) => {
+      e.preventDefault();
+      const id = form.dataset.editForm;
+      const data = Object.fromEntries(new FormData(form));
+      await fetchJSON(`/api/mentorados/${id}`, { method: 'PUT', body: data });
+      carregar();
+    };
+  });
+
+  $$('[data-cancel-edit]').forEach(b => {
+    b.onclick = () => {
+      const form = document.querySelector(`[data-edit-form="${b.dataset.cancelEdit}"]`);
+      if (form) form.hidden = true;
+    };
+  });
 
   $$('.prof-select').forEach(s => {
     s.onchange = () => {
@@ -238,13 +307,12 @@ const atualizarMentorado = async (id, patch) => {
 };
 
 const editarMentorado = async (id) => {
-  const m = mentorados.find(x => x.id === id);
-  if (!m) return;
-  const objetivo = prompt('Objetivo:', m.objetivo || '');
-  if (objetivo === null) return;
-  const notas = prompt('Notas:', m.notas || '');
-  if (notas === null) return;
-  await atualizarMentorado(id, { objetivo, notas });
+  const form = document.querySelector(`[data-edit-form="${id}"]`);
+  if (!form) return;
+  const willOpen = form.hidden;
+  document.querySelectorAll('[data-edit-form]').forEach(f => f.hidden = true);
+  form.hidden = !willOpen;
+  if (willOpen) form.querySelector('input[name="nome"]')?.focus();
 };
 
 const removerMentorado = async (id) => {
@@ -263,7 +331,14 @@ const renderRegua = () => {
   tabs.querySelectorAll('[data-tab]').forEach(b => {
     b.onclick = () => { activeReguaId = b.dataset.tab; renderRegua(); };
   });
-  tabs.querySelector('[data-add-regua]').onclick = criarRegua;
+  tabs.querySelector('[data-add-regua]').onclick = () => {
+    newReguaFormOpen = !newReguaFormOpen;
+    renderRegua();
+    if (newReguaFormOpen) {
+      const f = $('#regua-detail [data-new-regua-form]');
+      f?.querySelector('input[name="nome"]')?.focus();
+    }
+  };
 
   const r = reguaAtiva();
   if (!r) {
@@ -272,6 +347,22 @@ const renderRegua = () => {
   }
 
   $('#regua-detail').innerHTML = `
+    <form class="panel new-regua-form" data-new-regua-form ${newReguaFormOpen ? '' : 'hidden'}>
+      <h3>Nova régua</h3>
+      <div class="form-grid">
+        <label>Nome
+          <input name="nome" required maxlength="80" placeholder="ex: Backend, Frontend, QA">
+        </label>
+        <label>Descrição (opcional)
+          <input name="descricao" maxlength="300" placeholder="Desenvolvedor backend Node + Postgres">
+        </label>
+      </div>
+      <div class="acoes">
+        <button type="submit">Criar régua</button>
+        <button type="button" class="ghost" data-cancel-new-regua>Cancelar</button>
+      </div>
+    </form>
+
     <div class="regua-detail-header">
       <div class="texto">
         <h3>${escape(r.nome)}</h3>
@@ -348,6 +439,22 @@ const renderRegua = () => {
   $('#regua-detail [data-edit-regua]').onclick = () => editarRegua(r.id);
   $('#regua-detail [data-del-regua]').onclick = () => removerRegua(r.id);
 
+  const newReguaForm = $('#regua-detail [data-new-regua-form]');
+  if (newReguaForm) {
+    newReguaForm.onsubmit = async (e) => {
+      e.preventDefault();
+      const data = Object.fromEntries(new FormData(newReguaForm));
+      const created = await fetchJSON('/api/reguas', { method: 'POST', body: data });
+      newReguaFormOpen = false;
+      activeReguaId = created.id;
+      carregar();
+    };
+  }
+  $('#regua-detail [data-cancel-new-regua]')?.addEventListener('click', () => {
+    newReguaFormOpen = false;
+    renderRegua();
+  });
+
   $$('#regua-detail [data-edit-prof]').forEach(b => {
     b.onclick = () => editarProf(r.id, b.dataset.editProf);
   });
@@ -387,14 +494,7 @@ const renderRegua = () => {
   });
 };
 
-const criarRegua = async () => {
-  const nome = prompt('Nome da nova régua (ex: Backend, Frontend, QA, PO):');
-  if (!nome) return;
-  const descricao = prompt('Descrição (opcional):') || '';
-  const r = await fetchJSON('/api/reguas', { method: 'POST', body: { nome, descricao } });
-  activeReguaId = r.id;
-  carregar();
-};
+const criarRegua = async () => {}; // deprecated: inline form now lives in renderRegua()
 
 const editarRegua = async (id) => {
   const r = reguas.find(x => x.id === id);
