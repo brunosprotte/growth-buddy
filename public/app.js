@@ -31,6 +31,30 @@ const formatDate = (iso) => {
 
 const reguaAtiva = () => reguas.find(r => r.id === activeReguaId) || reguas[0];
 
+// Two-step inline confirm: first click arms, second click fires; 4s timeout reverts.
+const wireTwoStep = (btn, onConfirm, label = 'Confirmar?') => {
+  if (!btn) return;
+  const original = btn.textContent;
+  let resetTimer;
+  btn.onclick = () => {
+    if (btn.classList.contains('confirming')) {
+      clearTimeout(resetTimer);
+      btn.classList.remove('confirming');
+      btn.textContent = original;
+      onConfirm();
+      return;
+    }
+    btn.classList.add('confirming');
+    btn.textContent = label;
+    resetTimer = setTimeout(() => {
+      if (btn.isConnected) {
+        btn.classList.remove('confirming');
+        btn.textContent = original;
+      }
+    }, 4000);
+  };
+};
+
 // --- Starfish: score por assunto + render SVG ---
 const calcularScorePorAssunto = (mentorado, regua) => {
   if (!regua || !regua.assuntosMacro.length) return [];
@@ -480,8 +504,16 @@ const renderRegua = () => {
 
     <div class="regua-detail-header">
       <div class="texto">
-        <h3>${escape(r.nome)}</h3>
-        <p>${escape(r.descricao || 'Sem descrição.')}</p>
+        <h3 data-display="regua-nome">${escape(r.nome)}</h3>
+        <p data-display="regua-desc">${escape(r.descricao || 'Sem descrição.')}</p>
+        <form class="inline-edit" data-edit-regua-form hidden>
+          <input data-edit-regua-nome value="${escape(r.nome)}" required maxlength="80" aria-label="Nome da régua">
+          <input data-edit-regua-desc value="${escape(r.descricao || '')}" maxlength="300" placeholder="Descrição (opcional)" aria-label="Descrição da régua">
+          <div class="edit-actions">
+            <button type="submit">Salvar</button>
+            <button type="button" class="ghost" data-cancel-edit-regua>Cancelar</button>
+          </div>
+        </form>
       </div>
       <div class="acoes">
         <button class="ghost small" data-edit-regua>renomear</button>
@@ -493,12 +525,22 @@ const renderRegua = () => {
       <h4>Níveis de proficiência</h4>
       <div class="profs-list">
         ${r.proficiencias.slice().sort((a, b) => (a.peso || 0) - (b.peso || 0)).map(p => `
-          <span class="prof-pill">
-            <span class="prof-ordem">${p.peso}</span>
-            ${escape(p.nome)}
-            <button class="ghost mini" data-edit-prof="${p.id}">editar</button>
-            <button class="danger mini" data-del-prof="${p.id}">×</button>
-          </span>
+          <div class="prof-pill-wrap">
+            <span class="prof-pill">
+              <span class="prof-ordem">${p.peso}</span>
+              ${escape(p.nome)}
+              <button class="ghost mini" data-edit-prof="${p.id}">editar</button>
+              <button class="danger mini" data-del-prof="${p.id}">×</button>
+            </span>
+            <form class="inline-edit" data-edit-prof-form="${p.id}" hidden>
+              <input data-edit-prof-nome="${p.id}" value="${escape(p.nome)}" required maxlength="120" aria-label="Nome do nível">
+              <input type="number" data-edit-prof-peso="${p.id}" value="${p.peso}" min="0" max="100" step="1" aria-label="Peso do nível">
+              <div class="edit-actions">
+                <button type="submit">Salvar</button>
+                <button type="button" class="ghost" data-cancel-edit-prof="${p.id}">Cancelar</button>
+              </div>
+            </form>
+          </div>
         `).join('') || '<span style="color:var(--ink-mute);font-size:0.85rem">Nenhum nível definido.</span>'}
       </div>
       <div class="add-prof">
@@ -514,12 +556,20 @@ const renderRegua = () => {
         <article class="macro-card">
           <header>
             <div class="texto">
-              <h5>${escape(macro.nome)}</h5>
-              ${macro.descricao ? `<p>${escape(macro.descricao)}</p>` : ''}
+              <h5 data-display="macro-nome">${escape(macro.nome)}</h5>
+              ${macro.descricao ? `<p data-display="macro-desc">${escape(macro.descricao)}</p>` : ''}
               <p class="contador">${macro.itens.length} ${macro.itens.length === 1 ? 'marco' : 'marcos'}</p>
+              <form class="inline-edit" data-edit-macro-form="${macro.id}" hidden>
+                <input data-edit-macro-nome="${macro.id}" value="${escape(macro.nome)}" required maxlength="80" aria-label="Nome do assunto">
+                <input data-edit-macro-desc="${macro.id}" value="${escape(macro.descricao || '')}" maxlength="300" placeholder="Descrição (opcional)" aria-label="Descrição do assunto">
+                <div class="edit-actions">
+                  <button type="submit">Salvar</button>
+                  <button type="button" class="ghost" data-cancel-edit-macro="${macro.id}">Cancelar</button>
+                </div>
+              </form>
             </div>
             <div class="acoes">
-              <button class="ghost mini" data-edit-macro="${macro.id}" data-macro-nome="${escape(macro.nome)}" data-macro-desc="${escape(macro.descricao || '')}">editar</button>
+              <button class="ghost mini" data-edit-macro="${macro.id}">editar</button>
               <button class="danger mini" data-del-macro="${macro.id}">remover</button>
             </div>
           </header>
@@ -528,14 +578,22 @@ const renderRegua = () => {
               <li>
                 <div class="linha-topo">
                   <div class="texto">
-                    <strong>${escape(item.nome)}</strong>
-                    ${item.descricao ? `<span class="item-desc">${escape(item.descricao)}</span>` : ''}
+                    <strong data-display="item-nome">${escape(item.nome)}</strong>
+                    ${item.descricao ? `<span class="item-desc" data-display="item-desc">${escape(item.descricao)}</span>` : ''}
                   </div>
                   <div class="acoes">
-                    <button class="ghost small" data-edit-item-macro="${macro.id}|${item.id}" data-item-macro-nome="${escape(item.nome)}" data-item-macro-desc="${escape(item.descricao || '')}">editar</button>
+                    <button class="ghost small" data-edit-item-macro="${macro.id}|${item.id}">editar</button>
                     <button class="danger small" data-del-item-macro="${macro.id}|${item.id}">remover</button>
                   </div>
                 </div>
+                <form class="inline-edit" data-edit-item-form="${macro.id}|${item.id}" hidden>
+                  <input data-edit-item-nome="${macro.id}|${item.id}" value="${escape(item.nome)}" required maxlength="120" aria-label="Nome do marco">
+                  <textarea data-edit-item-desc="${macro.id}|${item.id}" maxlength="300" placeholder="Descrição (opcional)" aria-label="Descrição do marco">${escape(item.descricao || '')}</textarea>
+                  <div class="edit-actions">
+                    <button type="submit">Salvar</button>
+                    <button type="button" class="ghost" data-cancel-edit-item="${macro.id}|${item.id}">Cancelar</button>
+                  </div>
+                </form>
               </li>
             `).join('') : '<li class="vazio-item">Sem marcos neste assunto. Adicione abaixo.</li>'}
           </ul>
@@ -568,8 +626,25 @@ const renderRegua = () => {
 
   const detailRoot = $('#regua-detail');
 
-  detailRoot.querySelector('[data-edit-regua]').onclick = () => editarRegua(r.id);
-  detailRoot.querySelector('[data-del-regua]').onclick = () => removerRegua(r.id);
+  // Régua header — edit + remove
+  const reguaEditBtn = detailRoot.querySelector('[data-edit-regua]');
+  const reguaForm = detailRoot.querySelector('[data-edit-regua-form]');
+  if (reguaEditBtn && reguaForm) {
+    const cancel = reguaForm.querySelector('[data-cancel-edit-regua]');
+    reguaEditBtn.onclick = () => {
+      reguaForm.hidden = !reguaForm.hidden;
+      reguaEditBtn.textContent = reguaForm.hidden ? 'renomear' : 'fechar';
+      if (!reguaForm.hidden) reguaForm.querySelector('input')?.focus();
+    };
+    cancel.onclick = () => { reguaForm.hidden = true; reguaEditBtn.textContent = 'renomear'; };
+    reguaForm.onsubmit = async (e) => {
+      e.preventDefault();
+      const data = Object.fromEntries(new FormData(reguaForm));
+      await fetchJSON(`/api/reguas/${r.id}`, { method: 'PUT', body: data });
+      await recarregarReguas();
+    };
+  }
+  wireTwoStep(detailRoot.querySelector('[data-del-regua]'), () => removerRegua(r.id));
 
   const newReguaForm = detailRoot.querySelector('[data-new-regua-form]');
   if (newReguaForm) {
@@ -587,32 +662,78 @@ const renderRegua = () => {
     renderRegua();
   });
 
-  // Proficiências
-  detailRoot.querySelectorAll('[data-edit-prof]').forEach(b => {
-    b.onclick = () => editarProf(r.id, b.dataset.editProf);
+  // Proficiências — edit + remove
+  detailRoot.querySelectorAll('[data-edit-prof]').forEach(editBtn => {
+    const id = editBtn.dataset.editProf;
+    const form = detailRoot.querySelector(`[data-edit-prof-form="${id}"]`);
+    if (!form) return;
+    const cancel = form.querySelector(`[data-cancel-edit-prof="${id}"]`);
+    editBtn.onclick = () => {
+      form.hidden = !form.hidden;
+      editBtn.textContent = form.hidden ? 'editar' : 'fechar';
+      if (!form.hidden) form.querySelector('input')?.focus();
+    };
+    cancel.onclick = () => { form.hidden = true; editBtn.textContent = 'editar'; };
+    form.onsubmit = async (e) => {
+      e.preventDefault();
+      const data = Object.fromEntries(new FormData(form));
+      await fetchJSON(`/api/reguas/${r.id}/proficiencias/${id}`, { method: 'PUT', body: data });
+      await recarregarReguas();
+    };
   });
-  detailRoot.querySelectorAll('[data-del-prof]').forEach(b => {
-    b.onclick = () => removerProf(r.id, b.dataset.delProf);
+  detailRoot.querySelectorAll('[data-del-prof]').forEach(btn => {
+    wireTwoStep(btn, () => removerProf(r.id, btn.dataset.delProf));
   });
   detailRoot.querySelector('[data-add-prof-btn]').onclick = () => addProf(r.id);
   detailRoot.querySelector('[data-add-prof]').addEventListener('keydown', e => {
     if (e.key === 'Enter') addProf(r.id);
   });
 
-  // Assuntos macro
-  detailRoot.querySelectorAll('[data-edit-macro]').forEach(b => {
-    b.onclick = () => editarMacro(r.id, b.dataset.editMacro, b.dataset.macroNome, b.dataset.macroDesc);
+  // Assuntos macro — edit + remove
+  detailRoot.querySelectorAll('[data-edit-macro]').forEach(editBtn => {
+    const id = editBtn.dataset.editMacro;
+    const form = detailRoot.querySelector(`[data-edit-macro-form="${id}"]`);
+    if (!form) return;
+    const cancel = form.querySelector(`[data-cancel-edit-macro="${id}"]`);
+    editBtn.onclick = () => {
+      form.hidden = !form.hidden;
+      editBtn.textContent = form.hidden ? 'editar' : 'fechar';
+      if (!form.hidden) form.querySelector('input')?.focus();
+    };
+    cancel.onclick = () => { form.hidden = true; editBtn.textContent = 'editar'; };
+    form.onsubmit = async (e) => {
+      e.preventDefault();
+      const data = Object.fromEntries(new FormData(form));
+      await fetchJSON(`/api/reguas/${r.id}/assuntos-macro/${id}`, { method: 'PUT', body: data });
+      await recarregarReguas();
+    };
   });
-  detailRoot.querySelectorAll('[data-del-macro]').forEach(b => {
-    b.onclick = () => removerMacro(r.id, b.dataset.delMacro);
+  detailRoot.querySelectorAll('[data-del-macro]').forEach(btn => {
+    wireTwoStep(btn, () => removerMacro(r.id, btn.dataset.delMacro));
   });
 
-  // Itens dentro de assunto macro
-  detailRoot.querySelectorAll('[data-edit-item-macro]').forEach(b => {
-    b.onclick = () => editarItemMacro(r.id, b.dataset.editItemMacro, b.dataset.itemMacroNome, b.dataset.itemMacroDesc);
+  // Itens dentro de assunto macro — edit + remove
+  detailRoot.querySelectorAll('[data-edit-item-macro]').forEach(editBtn => {
+    const key = editBtn.dataset.editItemMacro;
+    const form = detailRoot.querySelector(`[data-edit-item-form="${key}"]`);
+    if (!form) return;
+    const cancel = form.querySelector(`[data-cancel-edit-item="${key}"]`);
+    editBtn.onclick = () => {
+      form.hidden = !form.hidden;
+      editBtn.textContent = form.hidden ? 'editar' : 'fechar';
+      if (!form.hidden) form.querySelector('input')?.focus();
+    };
+    cancel.onclick = () => { form.hidden = true; editBtn.textContent = 'editar'; };
+    form.onsubmit = async (e) => {
+      e.preventDefault();
+      const data = Object.fromEntries(new FormData(form));
+      const [macroId, itemId] = key.split('|');
+      await fetchJSON(`/api/reguas/${r.id}/assuntos-macro/${macroId}/itens/${itemId}`, { method: 'PUT', body: data });
+      await recarregarReguas();
+    };
   });
-  detailRoot.querySelectorAll('[data-del-item-macro]').forEach(b => {
-    b.onclick = () => removerItemMacro(r.id, b.dataset.delItemMacro);
+  detailRoot.querySelectorAll('[data-del-item-macro]').forEach(btn => {
+    wireTwoStep(btn, () => removerItemMacro(r.id, btn.dataset.delItemMacro));
   });
   detailRoot.querySelectorAll('[data-add-item-macro-btn]').forEach(b => {
     b.onclick = () => addItemMacro(r.id, b.dataset.addItemMacroBtn);
@@ -629,21 +750,9 @@ const renderRegua = () => {
   });
 };
 
-const editarRegua = async (id) => {
-  const r = reguas.find(x => x.id === id);
-  if (!r) return;
-  const nome = prompt('Nome:', r.nome);
-  if (nome === null) return;
-  const descricao = prompt('Descrição:', r.descricao || '');
-  if (descricao === null) return;
-  await fetchJSON(`/api/reguas/${id}`, { method: 'PUT', body: { nome, descricao } });
-  await recarregarReguas();
-};
+const editarRegua = async () => {};
 
 const removerRegua = async (id) => {
-  const r = reguas.find(x => x.id === id);
-  if (!r) return;
-  if (!confirm(`Remover a régua "${r.nome}"? Esta ação não pode ser desfeita.`)) return;
   try {
     await fetchJSON(`/api/reguas/${id}`, { method: 'DELETE' });
     await recarregarReguas();
@@ -669,23 +778,9 @@ const addProf = async (reguaId) => {
   await recarregarReguas();
 };
 
-const editarProf = async (reguaId, profId) => {
-  const r = reguas.find(x => x.id === reguaId);
-  const p = r?.proficiencias.find(x => x.id === profId);
-  if (!p) return;
-  const nome = prompt('Nome do nível de proficiência:', p.nome);
-  if (nome === null || !nome.trim()) return;
-  const pesoStr = prompt('Peso (define a ordem no dropdown e a nota do gráfico):', String(p.peso ?? 0));
-  if (pesoStr === null) return;
-  const peso = Number(pesoStr);
-  const body = { nome };
-  if (Number.isFinite(peso)) body.peso = peso;
-  await fetchJSON(`/api/reguas/${reguaId}/proficiencias/${profId}`, { method: 'PUT', body });
-  await recarregarReguas();
-};
+const editarProf = async () => {};
 
 const removerProf = async (reguaId, profId) => {
-  if (!confirm('Remover este nível de proficiência? Será desmarcado dos mentorados.')) return;
   await fetchJSON(`/api/reguas/${reguaId}/proficiencias/${profId}`, { method: 'DELETE' });
   await recarregarReguas();
 };
@@ -705,20 +800,9 @@ const addMacro = async (reguaId) => {
   await recarregarReguas();
 };
 
-const editarMacro = async (reguaId, macroId, nomeAtual, descAtual) => {
-  const nome = prompt('Nome do assunto macro:', nomeAtual);
-  if (nome === null || !nome.trim()) return;
-  const descricao = prompt('Descrição (opcional):', descAtual || '');
-  if (descricao === null) return;
-  await fetchJSON(`/api/reguas/${reguaId}/assuntos-macro/${macroId}`, {
-    method: 'PUT',
-    body: { nome, descricao },
-  });
-  await recarregarReguas();
-};
+const editarMacro = async () => {};
 
 const removerMacro = async (reguaId, macroId) => {
-  if (!confirm('Remover este assunto macro e todos os marcos dentro dele?')) return;
   await fetchJSON(`/api/reguas/${reguaId}/assuntos-macro/${macroId}`, { method: 'DELETE' });
   await recarregarReguas();
 };
@@ -738,22 +822,10 @@ const addItemMacro = async (reguaId, macroId) => {
   await recarregarReguas();
 };
 
-const editarItemMacro = async (reguaId, key, nomeAtual, descAtual) => {
-  const [macroId, itemId] = key.split('|');
-  const nome = prompt('Nome do marco:', nomeAtual);
-  if (nome === null || !nome.trim()) return;
-  const descricao = prompt('Descrição (opcional):', descAtual || '');
-  if (descricao === null) return;
-  await fetchJSON(`/api/reguas/${reguaId}/assuntos-macro/${macroId}/itens/${itemId}`, {
-    method: 'PUT',
-    body: { nome, descricao },
-  });
-  await recarregarReguas();
-};
+const editarItemMacro = async () => {};
 
 const removerItemMacro = async (reguaId, key) => {
   const [macroId, itemId] = key.split('|');
-  if (!confirm('Remover este marco?')) return;
   await fetchJSON(`/api/reguas/${reguaId}/assuntos-macro/${macroId}/itens/${itemId}`, { method: 'DELETE' });
   await recarregarReguas();
 };
