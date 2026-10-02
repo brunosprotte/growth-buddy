@@ -35,13 +35,16 @@ const reguaAtiva = () => reguas.find(r => r.id === activeReguaId) || reguas[0];
 $$('nav a').forEach(a => {
   a.onclick = (e) => {
     e.preventDefault();
-    $$('nav a').forEach(x => x.classList.remove('active'));
+    $$('nav a').forEach(x => { x.classList.remove('active'); x.removeAttribute('aria-current'); });
     a.classList.add('active');
+    a.setAttribute('aria-current', 'page');
     const view = a.dataset.view;
     $$('.view').forEach(v => v.hidden = v.id !== `view-${view}`);
     window.scrollTo(0, 0);
   };
 });
+// Default-current on first nav link
+$('nav a.active')?.setAttribute('aria-current', 'page');
 
 // --- Carregamento ---
 const carregar = async () => {
@@ -120,7 +123,7 @@ const renderDashboard = () => {
         </td>
         <td>
           <div class="progress-cell">
-            <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
+            <div class="progress-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}" aria-label="Progresso de ${escape(m.nome)} no nível ${escape(nivel?.nome || '')}"><div class="progress-fill" style="width:${pct}%"></div></div>
             <div class="progress-text">${marcadosNoNivel} de ${totalItens} marcos no nível</div>
           </div>
         </td>
@@ -173,7 +176,7 @@ const renderMentorados = () => {
               <span class="item-nome">${escape(item.nome)}</span>
               ${profNome}
             </div>
-            <select class="prof-select" data-prof="${m.id}|${item.id}">
+            <select class="prof-select" data-prof="${m.id}|${item.id}" aria-label="Proficiência de ${escape(item.nome)} para ${escape(m.nome)}">
               ${optsHtml}
             </select>
           </div>
@@ -231,7 +234,7 @@ const renderMentorados = () => {
           </form>
         </div>
         <div class="acoes">
-          <select data-status="${m.id}">
+          <select data-status="${m.id}" aria-label="Status de ${escape(m.nome)}">
             <option value="ativo" ${m.status === 'ativo' ? 'selected' : ''}>ativo</option>
             <option value="pausado" ${m.status === 'pausado' ? 'selected' : ''}>pausado</option>
             <option value="concluido" ${m.status === 'concluido' ? 'selected' : ''}>concluído</option>
